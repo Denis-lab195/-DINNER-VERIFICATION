@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ESA MMUST Dinner Ticket Verification</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #00203FFF, #ADEFD1FF);
+      margin: 0;
+      padding: 30px;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background-color: #fff;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      text-align: center;
+    }
+    h2 {
+      color: #00203F;
+      margin-bottom: 20px;
+    }
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+    button {
+      background-color: #00203F;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #003366;
+    }
+    .smartcard {
+      margin-top: 25px;
+      background: linear-gradient(145deg, #fff, #f0f0f0);
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .smartcard-columns {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .left-column, .right-column {
+      flex: 1;
+    }
+    @media screen and (min-width: 768px) {
+      .smartcard-columns {
+        flex-direction: row;
+      }
+    }
+    .smartcard-content {
+      text-align: left;
+    }
+    .smartcard h3 {
+      color: #00203F;
+      margin-top: 0;
+    }
+    .status {
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    .approved {
+      color: green;
+    }
+    .pending {
+      color: red;
+    }
+    #qrCode {
+      margin-top: 10px;
+    }
+    .alert {
+      display: none;
+      color: white;
+      background-color: red;
+      padding: 10px;
+      margin-top: 15px;
+      border-radius: 8px;
+      font-weight: bold;
+      animation: shake 0.3s ease-in-out 2;
+    }
+    @keyframes shake {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      50% { transform: translateX(5px); }
+      75% { transform: translateX(-5px); }
+      100% { transform: translateX(0); }
+    }
+    .footer {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #333;
+    }
+    .congrats-message {
+      padding: 15px;
+      background-color: #e0ffe0;
+      color: #003300;
+      border-radius: 10px;
+      font-weight: bold;
+    }
+
+    /* Glitter effect */
+    .karibu-glitter {
+      font-size: 22px;
+      font-weight: bold;
+      color: #fff;
+      background: linear-gradient(45deg, #ffda00, #f700ff, #00f7ff, #ff7300);
+      background-size: 400% 400%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: glitterGlow 2s infinite;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    @keyframes glitterGlow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>🎓 ESA MMUST Dinner Verification</h2>
+    <input type="text" id="serialInput" placeholder="Enter Ticket Serial Number" />
+    <button onclick="verifyTicket()">Verify Ticket</button>
+
+    <div id="smartcard" class="smartcard" style="display: none;">
+      <div class="smartcard-columns">
+        <div class="left-column smartcard-content" id="cardDetails"></div>
+        <div class="right-column" id="congratsBox"></div>
+      </div>
+    </div>
+
+    <div class="alert" id="alertBox">❗ Ticket NOT APPROVED. Contact the organizing committee via call or WhatsApp: <br><strong>0719 736 872</strong></div>
+
+    <div class="footer">
+      Having issues? Contact the ESA Dinner Organizing Committee: <br>
+      📞 Call / WhatsApp: <a href="https://wa.me/254719736872" target="_blank">0719 736 872</a>
+    </div>
+  </div>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAL_ZAAACf2w0f3pl6twgQaFv4heUOPnP0",
+      authDomain: "esa-mmust.firebaseapp.com",
+      databaseURL: "https://esa-mmust-default-rtdb.firebaseio.com",
+      projectId: "esa-mmust",
+      storageBucket: "esa-mmust.appspot.com",
+      messagingSenderId: "1032408799607",
+      appId: "1:1032408799607:web:ec6385b2f6e19d00baa972"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    window.verifyTicket = async function () {
+      const serial = document.getElementById("serialInput").value.trim();
+      const smartcard = document.getElementById("smartcard");
+      const alertBox = document.getElementById("alertBox");
+      const cardDetails = document.getElementById("cardDetails");
+      const congratsBox = document.getElementById("congratsBox");
+
+      smartcard.style.display = "none";
+      alertBox.style.display = "none";
+      cardDetails.innerHTML = "";
+      congratsBox.innerHTML = "";
+
+      if (!serial) return;
+
+      const salesRef = ref(db, "sales");
+
+      onValue(salesRef, (snapshot) => {
+        const data = snapshot.val();
+        let found = false;
+
+        for (const seller in data) {
+          for (const ticketId in data[seller]) {
+            const ticket = data[seller][ticketId];
+            if (ticket.ticketNo === serial) {
+              found = true;
+              const approved = ticket.approved;
+
+              cardDetails.innerHTML = `
+                <h3>🎫 Ticket Smartcard</h3>
+                <p><strong>Name:</strong> ${ticket.customerName}</p>
+                <p><strong>Contact:</strong> ${ticket.customerContact || 'N/A'}</p>
+                <p><strong>Ticket Type:</strong> ${ticket.ticketType}</p>
+                <p><strong>Amount Paid:</strong> ${ticket.amountPaid}</p>
+                <p><strong>Payment:</strong> ${ticket.paymentMethod}</p>
+                <p class="status ${approved ? 'approved' : 'pending'}">
+                  Status: ${approved ? 'APPROVED ✅' : 'NOT APPROVED ❗'}
+                </p>
+                <div id="qrCode"></div>
+              `;
+
+              QRCode.toCanvas(document.getElementById("qrCode"), serial, {
+                width: 120,
+                color: {
+                  dark: "#00203F",
+                  light: "#FFFFFF"
+                }
+              });
+
+              if (approved) {
+                congratsBox.innerHTML = `
+                  <div class="congrats-message">
+                    <div class="karibu-glitter">✨ KARIBU GOLF HOTEL ✨</div>
+                    🎉 Congratulations!<br>
+                    You are officially invited to the <strong>ESA MMUST Dinner</strong> at <strong>Golf Hotel, Kakamega</strong> on <strong>17th April 2025</strong>.<br>
+                    🕠 Entry Time: <strong>5:30 PM to 6:30 PM</strong>.<br>
+                    Come dressed to impress!
+                  </div>
+                `;
+              } else {
+                alertBox.style.display = "block";
+              }
+
+              smartcard.style.display = "flex";
+              return;
+            }
+          }
+        }
+
+        if (!found) {
+          smartcard.style.display = "none";
+          alertBox.innerHTML = "❗ Ticket not found. Please check the serial number.";
+          alertBox.style.display = "block";
+        }
+      }, { onlyOnce: true });
+    };
+  </script>
+</body>
+</html>
