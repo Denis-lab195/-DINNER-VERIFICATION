@@ -141,6 +141,12 @@
     <input type="text" id="serialInput" placeholder="Enter Ticket Serial Number" />
     <button onclick="verifyTicket()">Verify Ticket</button>
 
+    <div id="ticketTypeSelector" style="display: none; margin: 20px 0;">
+      <label for="ticketTypeDropdown"><strong>Select Ticket Type:</strong></label>
+      <select id="ticketTypeDropdown"></select>
+      <button onclick="displaySelectedTicket()">Confirm</button>
+    </div>
+
     <div id="smartcard" class="smartcard" style="display: none;">
       <div class="smartcard-columns">
         <div class="left-column smartcard-content" id="cardDetails"></div>
@@ -174,17 +180,24 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
+    let duplicates = [];
+
     window.verifyTicket = async function () {
       const serial = document.getElementById("serialInput").value.trim();
       const smartcard = document.getElementById("smartcard");
       const alertBox = document.getElementById("alertBox");
       const cardDetails = document.getElementById("cardDetails");
       const congratsBox = document.getElementById("congratsBox");
+      const selector = document.getElementById("ticketTypeSelector");
+      const dropdown = document.getElementById("ticketTypeDropdown");
 
       smartcard.style.display = "none";
       alertBox.style.display = "none";
       cardDetails.innerHTML = "";
       congratsBox.innerHTML = "";
+      selector.style.display = "none";
+      dropdown.innerHTML = "";
+      duplicates = [];
 
       if (!serial) return;
 
@@ -192,63 +205,84 @@
 
       onValue(salesRef, (snapshot) => {
         const data = snapshot.val();
-        let found = false;
-
         for (const seller in data) {
           for (const ticketId in data[seller]) {
             const ticket = data[seller][ticketId];
             if (ticket.ticketNo === serial) {
-              found = true;
-              const approved = ticket.approved;
-
-              cardDetails.innerHTML = `
-                <h3>🎫 Ticket Smartcard</h3>
-                <p><strong>Name:</strong> ${ticket.customerName}</p>
-                <p><strong>Contact:</strong> ${ticket.customerContact || 'N/A'}</p>
-                <p><strong>Ticket Type:</strong> ${ticket.ticketType}</p>
-                <p><strong>Amount Paid:</strong> ${ticket.amountPaid}</p>
-                <p><strong>Payment:</strong> ${ticket.paymentMethod}</p>
-                <p class="status ${approved ? 'approved' : 'pending'}">
-                  Status: ${approved ? 'APPROVED ✅' : 'NOT APPROVED ❗'}
-                </p>
-                <div id="qrCode"></div>
-              `;
-
-              QRCode.toCanvas(document.getElementById("qrCode"), serial, {
-                width: 120,
-                color: {
-                  dark: "#00203F",
-                  light: "#FFFFFF"
-                }
-              });
-
-              if (approved) {
-                congratsBox.innerHTML = `
-                  <div class="congrats-message">
-                    <div class="karibu-glitter">✨ KARIBU GOLF HOTEL ✨</div>
-                    🎉 Congratulations!<br>
-                    You are officially invited to the <strong>ESA MMUST Dinner</strong> at <strong>Golf Hotel, Kakamega</strong> on <strong>17th April 2025</strong>.<br>
-                    🕠 Entry Time: <strong>5:30 PM to 6:30 PM</strong>.<br>
-                    Come dressed to impress!
-                  </div>
-                `;
-              } else {
-                alertBox.style.display = "block";
-              }
-
-              smartcard.style.display = "flex";
-              return;
+              duplicates.push(ticket);
             }
           }
         }
 
-        if (!found) {
-          smartcard.style.display = "none";
+        if (duplicates.length === 0) {
           alertBox.innerHTML = "❗ Ticket not found. Please check the serial number.";
           alertBox.style.display = "block";
+        } else if (duplicates.length === 1) {
+          renderSmartCard(duplicates[0]);
+        } else {
+          selector.style.display = "block";
+          duplicates.forEach((ticket, index) => {
+            const option = document.createElement("option");
+            option.value = index;
+            option.textContent = ticket.ticketType;
+
+            dropdown.appendChild(option);
+          });
         }
       }, { onlyOnce: true });
     };
+
+    window.displaySelectedTicket = function () {
+      const selectedIndex = document.getElementById("ticketTypeDropdown").value;
+      const selectedTicket = duplicates[selectedIndex];
+      renderSmartCard(selectedTicket);
+    };
+
+    function renderSmartCard(ticket) {
+      const smartcard = document.getElementById("smartcard");
+      const alertBox = document.getElementById("alertBox");
+      const cardDetails = document.getElementById("cardDetails");
+      const congratsBox = document.getElementById("congratsBox");
+
+      const approved = ticket.approved;
+
+      cardDetails.innerHTML = `
+        <h3>🎫 Ticket Smartcard</h3>
+        <p><strong>Name:</strong> ${ticket.customerName}</p>
+        <p><strong>Contact:</strong> ${ticket.customerContact || 'N/A'}</p>
+        <p><strong>Ticket Type:</strong> ${ticket.ticketType}</p>
+        <p><strong>Amount Paid:</strong> ${ticket.amountPaid}</p>
+        <p><strong>Payment:</strong> ${ticket.paymentMethod}</p>
+        <p class="status ${approved ? 'approved' : 'pending'}">
+          Status: ${approved ? 'APPROVED ✅' : 'NOT APPROVED ❗'}
+        </p>
+        <div id="qrCode"></div>
+      `;
+
+      QRCode.toCanvas(document.getElementById("qrCode"), ticket.ticketNo, {
+        width: 120,
+        color: {
+          dark: "#00203F",
+          light: "#FFFFFF"
+        }
+      });
+
+      if (approved) {
+        congratsBox.innerHTML = `
+          <div class="congrats-message">
+            <div class="karibu-glitter">✨ KARIBU GOLF HOTEL ✨</div>
+            🎉 Congratulations!<br>
+            You are officially invited to the <strong>ESA MMUST Dinner</strong> at <strong>Golf Hotel, Kakamega</strong> on <strong>17th April 2025</strong>.<br>
+            🕠 Entry Time: <strong>5:30 PM to 6:30 PM</strong>.<br>
+            Come dressed to impress!
+          </div>
+        `;
+      } else {
+        alertBox.style.display = "block";
+      }
+
+      smartcard.style.display = "flex";
+    }
   </script>
 </body>
 </html>
