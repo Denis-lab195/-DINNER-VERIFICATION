@@ -217,14 +217,14 @@
         } else if (duplicates.length === 1) {
           renderSmartCard(duplicates[0]);
         } else {
-          // Only show selector if duplicates with different types exist
+          // Remove same ticket type duplicates
           const uniqueTickets = [];
           duplicates.forEach(ticket => {
             if (!uniqueTickets.find(t => t.ticketType === ticket.ticketType)) {
               uniqueTickets.push(ticket);
             }
           });
-
+  
           if (uniqueTickets.length === 1) {
             renderSmartCard(uniqueTickets[0]);
           } else {
@@ -255,10 +255,28 @@
       const congratsBox = document.getElementById("congratsBox");
   
       const approved = ticket.approved;
+      const isGroupOfFive = (ticket.ticketType || "").toLowerCase() === "group of five";
+  
+      let nameSection = "";
+  
+      if (isGroupOfFive) {
+        const groupMembers = duplicates.filter(t =>
+          t.ticketNo === ticket.ticketNo &&
+          (t.ticketType || "").toLowerCase() === "group of five"
+        );
+  
+        nameSection = `<p><strong>Names:</strong></p><ul style="margin: 5px 0 10px 20px;">`;
+        groupMembers.forEach((member, index) => {
+          nameSection += `<li>${member.customerName || `Member ${index + 1}`}</li>`;
+        });
+        nameSection += `</ul>`;
+      } else {
+        nameSection = `<p><strong>Name:</strong> ${ticket.customerName}</p>`;
+      }
   
       cardDetails.innerHTML = `
         <h3>🎫 Ticket Smartcard</h3>
-        <p><strong>Name:</strong> ${ticket.customerName}</p>
+        ${nameSection}
         <p><strong>Contact:</strong> ${ticket.customerContact || 'N/A'}</p>
         <p><strong>Ticket Type:</strong> ${ticket.ticketType}</p>
         <p><strong>Amount Paid:</strong> ${ticket.amountPaid}</p>
@@ -294,5 +312,6 @@
       smartcard.style.display = "flex";
     }
   </script>
+  
 </body>
 </html>
