@@ -113,7 +113,6 @@
       border-radius: 10px;
       font-weight: bold;
     }
-
     /* Glitter effect */
     .karibu-glitter {
       font-size: 22px;
@@ -127,7 +126,6 @@
       text-align: center;
       margin-bottom: 10px;
     }
-
     @keyframes glitterGlow {
       0% { background-position: 0% 50%; }
       50% { background-position: 100% 50%; }
@@ -140,33 +138,33 @@
     <h2>🎓 ESA MMUST Dinner Verification</h2>
     <input type="text" id="serialInput" placeholder="Enter Ticket Serial Number" />
     <button onclick="verifyTicket()">Verify Ticket</button>
-
+    
     <div id="ticketTypeSelector" style="display: none; margin: 20px 0;">
       <label for="ticketTypeDropdown"><strong>Select Ticket Type:</strong></label>
       <select id="ticketTypeDropdown"></select>
       <button onclick="displaySelectedTicket()">Confirm</button>
     </div>
-
+    
     <div id="smartcard" class="smartcard" style="display: none;">
       <div class="smartcard-columns">
         <div class="left-column smartcard-content" id="cardDetails"></div>
         <div class="right-column" id="congratsBox"></div>
       </div>
     </div>
-
+    
     <div class="alert" id="alertBox">❗ Ticket NOT APPROVED. Contact the organizing committee via call or WhatsApp: <br><strong>0719 736 872</strong></div>
-
+    
     <div class="footer">
       Having issues? Contact the ESA Dinner Organizing Committee: <br>
       📞 Call / WhatsApp: <a href="https://wa.me/254719736872" target="_blank">0719 736 872</a>
     </div>
   </div>
-
+  
   <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
     import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
-
+  
     const firebaseConfig = {
       apiKey: "AIzaSyAL_ZAAACf2w0f3pl6twgQaFv4heUOPnP0",
       authDomain: "esa-mmust.firebaseapp.com",
@@ -176,12 +174,13 @@
       messagingSenderId: "1032408799607",
       appId: "1:1032408799607:web:ec6385b2f6e19d00baa972"
     };
-
+  
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-
+  
+    // Global array to store the duplicate tickets (or filtered unique ones)
     let duplicates = [];
-
+  
     window.verifyTicket = async function () {
       const serial = document.getElementById("serialInput").value.trim();
       const smartcard = document.getElementById("smartcard");
@@ -190,7 +189,7 @@
       const congratsBox = document.getElementById("congratsBox");
       const selector = document.getElementById("ticketTypeSelector");
       const dropdown = document.getElementById("ticketTypeDropdown");
-
+  
       smartcard.style.display = "none";
       alertBox.style.display = "none";
       cardDetails.innerHTML = "";
@@ -198,11 +197,11 @@
       selector.style.display = "none";
       dropdown.innerHTML = "";
       duplicates = [];
-
+  
       if (!serial) return;
-
+  
       const salesRef = ref(db, "sales");
-
+  
       onValue(salesRef, (snapshot) => {
         const data = snapshot.val();
         for (const seller in data) {
@@ -213,39 +212,54 @@
             }
           }
         }
-
+  
         if (duplicates.length === 0) {
           alertBox.innerHTML = "❗ Ticket not found. Please check the serial number.";
           alertBox.style.display = "block";
         } else if (duplicates.length === 1) {
           renderSmartCard(duplicates[0]);
         } else {
+          // Filter out duplicate ticket types so that only unique ticket types are shown.
+          const uniqueTickets = [];
+          duplicates.forEach(ticket => {
+            if (!uniqueTickets.find(t => t.ticketType === ticket.ticketType)) {
+              uniqueTickets.push(ticket);
+            }
+          });
+  
+          // Update the global array reference to only include unique tickets.
+          duplicates = uniqueTickets;
+  
+          // Populate the dropdown with unique ticket types.
           selector.style.display = "block";
           duplicates.forEach((ticket, index) => {
             const option = document.createElement("option");
             option.value = index;
             option.textContent = ticket.ticketType;
-
             dropdown.appendChild(option);
           });
         }
       }, { onlyOnce: true });
     };
-
+  
     window.displaySelectedTicket = function () {
       const selectedIndex = document.getElementById("ticketTypeDropdown").value;
       const selectedTicket = duplicates[selectedIndex];
+  
+      // Hide the selector dropdown after selection.
+      document.getElementById("ticketTypeSelector").style.display = "none";
+  
       renderSmartCard(selectedTicket);
     };
-
+  
     function renderSmartCard(ticket) {
       const smartcard = document.getElementById("smartcard");
       const alertBox = document.getElementById("alertBox");
       const cardDetails = document.getElementById("cardDetails");
       const congratsBox = document.getElementById("congratsBox");
-
+  
       const approved = ticket.approved;
-
+  
       cardDetails.innerHTML = `
         <h3>🎫 Ticket Smartcard</h3>
         <p><strong>Name:</strong> ${ticket.customerName}</p>
@@ -258,7 +272,7 @@
         </p>
         <div id="qrCode"></div>
       `;
-
+  
       QRCode.toCanvas(document.getElementById("qrCode"), ticket.ticketNo, {
         width: 120,
         color: {
@@ -266,7 +280,7 @@
           light: "#FFFFFF"
         }
       });
-
+  
       if (approved) {
         congratsBox.innerHTML = `
           <div class="congrats-message">
@@ -280,7 +294,7 @@
       } else {
         alertBox.style.display = "block";
       }
-
+  
       smartcard.style.display = "flex";
     }
   </script>
