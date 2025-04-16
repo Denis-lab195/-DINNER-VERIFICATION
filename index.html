@@ -113,7 +113,6 @@
       border-radius: 10px;
       font-weight: bold;
     }
-    /* Glitter effect */
     .karibu-glitter {
       font-size: 22px;
       font-weight: bold;
@@ -178,7 +177,6 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
   
-    // Global array to store the duplicate tickets (or filtered unique ones)
     let duplicates = [];
   
     window.verifyTicket = async function () {
@@ -219,25 +217,26 @@
         } else if (duplicates.length === 1) {
           renderSmartCard(duplicates[0]);
         } else {
-          // Filter out duplicate ticket types so that only unique ticket types are shown.
+          // Only show selector if duplicates with different types exist
           const uniqueTickets = [];
           duplicates.forEach(ticket => {
             if (!uniqueTickets.find(t => t.ticketType === ticket.ticketType)) {
               uniqueTickets.push(ticket);
             }
           });
-  
-          // Update the global array reference to only include unique tickets.
-          duplicates = uniqueTickets;
-  
-          // Populate the dropdown with unique ticket types.
-          selector.style.display = "block";
-          duplicates.forEach((ticket, index) => {
-            const option = document.createElement("option");
-            option.value = index;
-            option.textContent = ticket.ticketType;
-            dropdown.appendChild(option);
-          });
+
+          if (uniqueTickets.length === 1) {
+            renderSmartCard(uniqueTickets[0]);
+          } else {
+            duplicates = uniqueTickets;
+            selector.style.display = "block";
+            duplicates.forEach((ticket, index) => {
+              const option = document.createElement("option");
+              option.value = index;
+              option.textContent = ticket.ticketType;
+              dropdown.appendChild(option);
+            });
+          }
         }
       }, { onlyOnce: true });
     };
@@ -245,10 +244,7 @@
     window.displaySelectedTicket = function () {
       const selectedIndex = document.getElementById("ticketTypeDropdown").value;
       const selectedTicket = duplicates[selectedIndex];
-  
-      // Hide the selector dropdown after selection.
       document.getElementById("ticketTypeSelector").style.display = "none";
-  
       renderSmartCard(selectedTicket);
     };
   
